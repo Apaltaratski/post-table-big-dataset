@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Table with Search</title>
+<style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .highlight {
+            background-color: yellow;
+            font-weight: bold;
+        }
+        .search-container {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .search-container input {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .search-container button {
+            padding: 10px;
+            font-size: 16px;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        .table-container {
+            height: 600px; /* Fixed height for the table container */
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            position: relative;
+        }
+        .inner-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+        }
+        .row {
+            display: flex;
+            flex-direction: column;
+            border-bottom: 1px solid #ddd;
+            min-height: 100px;
+            height: 100px;
+            max-height: 100px;
+            gap: 3px;
+        }
+        .row .columns {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 3px;
+            flex-grow: 1; /* Allow columns to grow and fill space */
+        }
+        .row .columns > div {
+            flex: 1 1 auto; /* Allow columns to grow and shrink */
+            word-wrap: break-word;
+            min-width: 100px;
+        }
+        .row:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .header {
+            display: flex;
+            flex-direction: column;
+            font-weight: bold;
+            border-bottom: 2px solid #333;
+            background-color: #f1f1f1;
+            padding: 10px;
+        }
+        .header > div {
+            padding: 10px;
+        }
+        .header .column-search-container {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .header .column-search-container input {
+            flex: 1;
+            padding: 5px;
+            font-size: 14px;
+        }
+        .header .column-search-container button {
+            padding: 5px 10px;
+            font-size: 14px;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        .buildings-line {
+            font-style: italic;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="search-container">
+        <input type="text" id="global-search" placeholder="Глобальный поиск..." />
+        <button id="clear-search">X</button>
+    </div>
+    <div class="header" id="header">
+        <div data-column="postcode">
+            Почтовый индекс
+            <div class="column-search-container">
+                <input type="text" class="column-search" data-column="postcode" placeholder="Поиск..." />
+                <button class="clear-column-search">X</button>
+            </div>
+        </div>
+        <div data-column="city">
+            Город
+            <div class="column-search-container">
+                <input type="text" class="column-search" data-column="city" placeholder="Поиск..." />
+                <button class="clear-column-search">X</button>
+            </div>
+        </div>
+        <div data-column="street">
+            Улица
+            <div class="column-search-container">
+                <input type="text" class="column-search" data-column="street" placeholder="Поиск..." />
+                <button class="clear-column-search">X</button>
+            </div>
+        </div>
+        <div data-column="district">
+            Район
+            <div class="column-search-container">
+                <input type="text" class="column-search" data-column="district" placeholder="Поиск..." />
+                <button class="clear-column-search">X</button>
+            </div>
+        </div>
+        <div data-column="region">
+            Регион
+            <div class="column-search-container">
+                <input type="text" class="column-search" data-column="region" placeholder="Поиск..." />
+                <button class="clear-column-search">X</button>
+            </div>
+        </div>
+    </div>
+    <div class="table-container" id="table-container">
+        <div class="inner-container" id="inner-container">
+            <!-- Rows will be dynamically added here -->
+        </div>
+    </div>
+
+    <!-- Include data.js -->
+    <script src="data.js"></script>
+    <script>
+        // Your JavaScript code to initialize the table
+        function initializeTable() {
+            const tableContainer = document.getElementById('table-container');
+            const innerContainer = document.getElementById('inner-container');
+            const header = document.getElementById('header');
+            const containerHeight = 600; // Fixed table height
+            const rowHeight = 100; // Fixed row height
+            let visibleRowCount = Math.floor(containerHeight / rowHeight);
+            let totalRows = data.length;
+            let innerContainerHeight = totalRows * rowHeight;
+            innerContainer.style.height = `${innerContainerHeight}px`;
+            let filteredData = data;
+            let currentSearchValue = '';
+            let columnSearchValues = {}; // Store column-specific search values
+
+            // Render rows
+            function renderRows(startIndex, endIndex, localData, searchValue = '') {
+                innerContainer.innerHTML = '';
+
+                for (let i = startIndex; i < endIndex; i++) {
+                    if (i >= localData.length) break;
+                    const row = document.createElement('div');
+                    row.className = 'row';
+
+                    const highlightText = (text) => {
+                        if (!searchValue) return text;
+                        const regex = new RegExp(`(${searchValue})`, 'gi');
+                        return text.replace(regex, '<span class="highlight">$1</span>');
+                    };
+
+                    // Create columns container
+                    const columns = document.createElement('div');
+                    columns.className = 'columns';
+                    columns.innerHTML = `
+                        <div>${highlightText(localData[i]?.postcode || '')}</div>
+                        <div>${highlightText(localData[i]?.city || '')}</div>
+                        <div>${highlightText(localData[i]?.street || '')}</div>
+                        <div>${highlightText(localData[i]?.district || '')}</div>
+                        <div>${highlightText(localData[i]?.region || '')}</div>
+                    `;
+
+                    // Create buildings line
+                    const buildingsLine = document.createElement('div');
+                    buildingsLine.className = 'buildings-line';
+                    buildingsLine.innerHTML = `Строения: ${highlightText(localData[i]?.buildings || '')}`;
+
+                    // Append columns and buildings line to the row
+                    row.appendChild(columns);
+                    row.appendChild(buildingsLine);
+                    innerContainer.appendChild(row);
+                }
+            }
+
+            // Update scroll
+            function updateScroll() {
+                const scrollTop = tableContainer.scrollTop;
+                const startIndex = Math.floor(scrollTop / rowHeight);
+                const endIndex = Math.min(startIndex + visibleRowCount, totalRows);
+
+                const currentTranslateY = startIndex * rowHeight;
+                innerContainer.style.transform = `translateY(${currentTranslateY}px)`;
+                renderRows(startIndex, endIndex, filteredData, currentSearchValue);
+            }
+
+            // Filter data based on global and column-specific search
+            function filterData() {
+                filteredData = data.filter(item => {
+                    // Global search
+                    const globalMatch = !currentSearchValue || Object.values(item).some(value =>
+                        String(value).toLowerCase().includes(currentSearchValue)
+                    );
+
+                    // Column-specific search
+                    const columnMatch = Object.keys(columnSearchValues).every(column => {
+                        const searchValue = columnSearchValues[column];
+                        return !searchValue || String(item[column]).toLowerCase().includes(searchValue);
+                    });
+
+                    return globalMatch && columnMatch;
+                });
+
+                totalRows = filteredData.length;
+                innerContainerHeight = totalRows * rowHeight;
+                innerContainer.style.height = `${innerContainerHeight}px`;
+                renderRows(0, Math.min(10, filteredData.length), filteredData, currentSearchValue);
+                tableContainer.scrollTop = 0;
+            }
+
+            // Global search event listener
+            const globalSearchInput = document.getElementById('global-search');
+            globalSearchInput.addEventListener('input', function() {
+                currentSearchValue = this.value.toLowerCase();
+                filterData();
+            });
+
+            // Clear global search button
+            const clearSearchButton = document.getElementById('clear-search');
+            clearSearchButton.addEventListener('click', () => {
+                globalSearchInput.value = '';
+                currentSearchValue = '';
+                filterData();
+            });
+
+            // Column-specific search event listeners
+            header.querySelectorAll('.column-search').forEach(input => {
+                input.addEventListener('input', function() {
+                    const column = this.getAttribute('data-column');
+                    columnSearchValues[column] = this.value.toLowerCase();
+                    filterData();
+                });
+            });
+
+            // Clear column-specific search buttons
+            header.querySelectorAll('.clear-column-search').forEach(button => {
+                button.addEventListener('click', function() {
+                    const column = this.parentElement.querySelector('.column-search').getAttribute('data-column');
+                    columnSearchValues[column] = ''; // Reset the column filter
+                    this.parentElement.querySelector('.column-search').value = ''; // Clear the input
+                    filterData(); // Reapply the filter
+                });
+            });
+
+            // Initial render
+            renderRows(0, Math.ceil(containerHeight / rowHeight), data);
+            tableContainer.addEventListener('scroll', updateScroll);
+        }
+
+        // Start the app
+        initializeTable();
+    </script>
+</body>
+</html>
